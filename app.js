@@ -5,6 +5,9 @@ const REDIRECT_URI = window.location.origin + window.location.pathname;
 // Magic link: aa361e4ccd39469a8e01aa69e8117c22
 const HARDCODED_CLIENT_ID = 'aa361e4ccd39469a8e01aa69e8117c22';
 
+// Whitelist: Only playlists starting with "kid-spot" are allowed
+const CURATED_PLAYLISTS_PATTERN = /^kid-spot/i;  // Case-insensitive, starts with "kid-spot"
+
 const debug = new URLSearchParams(window.location.search).has('debug');
 const logEl = document.getElementById('log');
 if (debug) logEl.style.display = 'block';
@@ -341,6 +344,9 @@ async function loadPlaylists() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
   (data.items || []).forEach(pl => {
+    // Filter: Only show playlists matching the whitelist pattern
+    if (!CURATED_PLAYLISTS_PATTERN.test(pl.name)) return;
+    
     const tile = document.createElement('div');
     tile.className = 'tile';
     const img = document.createElement('img');
