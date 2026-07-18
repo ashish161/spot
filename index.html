@@ -5,36 +5,93 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#faf3ea">
+<meta name="theme-color" content="#121212">
 <title>Focus Player</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
+ 
 <div id="setup">
-  <h1>Focus Player setup</h1>
-  <p class="hint">One-time. Client ID comes from a Spotify app you create at
-    developer.spotify.com/dashboard (desktop browser). Redirect URI must be set there to
-    this exact page's URL.</p>
-  <input id="clientIdInput" placeholder="Spotify Client ID">
-  <button id="loginBtn">Log in with Spotify</button>
-  <button id="demoBtn">View demo playlists (sample tracks, no Spotify)</button>
-  <button id="mockBtn">Test tone only &mdash; check lock-screen/resume behavior</button>
+  <div class="brand-mark">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--brand)"/><path d="M6.5 9.8c3-1 7.4-.6 9.9.9M7 12.7c2.6-.8 6.2-.5 8.4.8M7.4 15.4c2.1-.6 4.9-.4 6.7.6" stroke="#121212" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </div>
+  <h1>Focus Player</h1>
+  <p class="hint">Tap below to start listening.</p>
+  <button id="loginBtn" class="primary-btn">Log in with Spotify</button>
+  <button id="demoBtn">View demo playlists</button>
+  <button id="mockBtn">Test tone only</button>
 </div>
-
+ 
 <div id="grid-screen">
-  <h1>Your playlists</h1>
+  <div class="grid-header">
+    <span class="eyebrow">Good to see you</span>
+    <h1>Your Playlists</h1>
+  </div>
   <button id="resumeBanner" style="display:none"></button>
   <div id="grid"></div>
 </div>
-
+ 
+<div id="playlist-screen">
+  <div class="pl-header">
+    <button id="plBackBtn" aria-label="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <img id="plCover" class="pl-cover">
+    <h1 id="plName">—</h1>
+    <div class="pl-actions">
+      <button id="plShuffleBtn" aria-label="Shuffle play">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h3.5c1.3 0 2.5.7 3.2 1.8l3 5.2c.7 1.1 1.9 1.8 3.2 1.8H20M17 12.5h3M4 18h3.5c1.3 0 2.5-.7 3.2-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.5 3.5l3 3-3 3M17.5 15l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="plPlayBtn" aria-label="Play playlist">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#121212"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="plTrackList"></div>
+</div>
+ 
 <div id="player-screen">
-  <button id="backBtn">&#8249;</button>
+  <button id="backBtn" aria-label="Back">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="top-right">
-    <button id="shuffleBtn" title="Shuffle">&#128256;</button>
+    <button id="shuffleBtn" title="Shuffle" aria-label="Shuffle">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h3.5c1.3 0 2.5.7 3.2 1.8l3 5.2c.7 1.1 1.9 1.8 3.2 1.8H20M17 12.5h3M4 18h3.5c1.3 0 2.5-.7 3.2-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.5 3.5l3 3-3 3M17.5 15l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <button id="timerBtn" title="Sleep timer">Timer: Off</button>
   </div>
-  <img id="nowArt">
+  <div class="art-frame"><img id="nowArt" draggable="false"></div>
+  <div id="nowTitle">—</div>
+  <div id="nowArtist">—</div>
+  <div class="spotify-attribution">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#1DB954"/><path d="M6.5 9.8c3-1 7.4-.6 9.9.9M7 12.7c2.6-.8 6.2-.5 8.4.8M7.4 15.4c2.1-.6 4.9-.4 6.7.6" stroke="#121212" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <span>Spotify</span>
+  </div>
+  <div class="progress-row">
+    <span id="elapsedTime">0:00</span>
+    <input id="seekBar" type="range" min="0" max="100" value="0">
+    <span id="durationTime">0:00</span>
+  </div>
+  <div class="controls">
+    <button id="prevBtn" aria-label="Previous">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM19 5L9 12l10 7z"/></svg>
+    </button>
+    <button id="playPauseBtn" aria-label="Play">
+      <svg id="playIcon" width="24" height="24" viewBox="0 0 24 24" fill="#121212"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="pauseIcon" width="22" height="22" viewBox="0 0 24 24" fill="#121212" style="display:none"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+    </button>
+    <button id="nextBtn" aria-label="Next">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5 5l10 7L5 19z"/></svg>
+    </button>
+  </div>
+</div>
+ 
+<div id="log"></div>
+ 
+<script src="app.js"></script>
+</body>
+</html>
+   <img id="nowArt">
   <div id="nowTitle">—</div>
   <div id="nowArtist">—</div>
   <div class="progress-row">
