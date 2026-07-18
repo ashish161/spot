@@ -1,6 +1,10 @@
 const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative user-library-read';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 
+// TODO: Replace with D1 database query later
+// Magic link: aa361e4ccd39469a8e01aa69e8117c22
+const HARDCODED_CLIENT_ID = 'aa361e4ccd39469a8e01aa69e8117c22';
+
 const debug = new URLSearchParams(window.location.search).has('debug');
 const logEl = document.getElementById('log');
 if (debug) logEl.style.display = 'block';
@@ -21,8 +25,8 @@ function randStr(len) {
 }
 
 async function startLogin() {
-  const clientId = document.getElementById('clientIdInput').value.trim();
-  if (!clientId) { alert('paste client_id first'); return; }
+  // Use hardcoded Client ID
+  const clientId = HARDCODED_CLIENT_ID;
   localStorage.setItem('client_id', clientId);
   const verifier = randStr(64);
   localStorage.setItem('verifier', verifier);
@@ -340,7 +344,7 @@ async function loadPlaylists() {
     const tile = document.createElement('div');
     tile.className = 'tile';
     const img = document.createElement('img');
-    img.src = pl.images?.[0]?.url || '';
+    img.src = (pl.images && pl.images[0]?.url) || '';
     const label = document.createElement('span');
     label.textContent = pl.name;
     tile.append(img, label);
@@ -463,8 +467,8 @@ seekBar.addEventListener('change', async () => {
 });
 
 async function boot() {
-  const savedClientId = localStorage.getItem('client_id');
-  if (savedClientId) document.getElementById('clientIdInput').value = savedClientId;
+  // Auto-set hardcoded Client ID
+  localStorage.setItem('client_id', HARDCODED_CLIENT_ID);
 
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
