@@ -98,7 +98,7 @@ async function getValidToken() {
 }
  
 function showScreen(id) {
-  ['setup', 'grid-screen', 'player-screen'].forEach(s => {
+  ['setup', 'grid-screen', 'playlist-screen', 'player-screen'].forEach(s => {
     document.getElementById(s).style.display = s === id ? (id === 'player-screen' ? 'flex' : 'block') : 'none';
   });
 }
@@ -113,6 +113,10 @@ let currentPlaylistName = null;
 let lastState = null;
 let tickIntervalId = null;
 let seeking = false;
+let pendingSlideIn = false;
+let pendingSlideInTimeout = null;
+let previousScreenBeforePlayer = 'grid-screen';
+let currentPlaylistDetail = null; // { tracks, contextUri, name, isRemote }
 const SLEEP_OPTIONS_MIN = [0, 15, 30, 45, 60];
 let sleepIndex = 0;
 let sleepTimeoutId = null;
@@ -199,10 +203,41 @@ function renderDemoGrid() {
     const label = document.createElement('span');
     label.textContent = pl.name;
     tile.append(img, label);
-    tile.addEventListener('click', () => playLocalQueue(pl.tracks, 0));
+    tile.addEventListener('click', () => openDemoPlaylistDetail(pl));
     grid.appendChild(tile);
   });
   showScreen('grid-screen');
+}
+ 
+function openDemoPlaylistDetail(pl) {
+  currentPlaylistDetail = { tracks: pl.tracks, isRemote: false, cover: pl.cover, name: pl.name };
+  document.getElementById('plName').textContent = pl.name;
+  document.getElementById('plCover').src = pl.cover;
+  const list = document.getElementById('plTrackList');
+  list.innerHTML = '';
+  pl.tracks.forEach((track, idx) => {
+    const row = document.createElement('div');
+    row.className = 'track-row';
+    const index = document.createElement('div');
+    index.className = 'track-index';
+    index.textContent = idx + 1;
+    const info = document.createElement('div');
+    info.className = 'track-info';
+    const name = document.createElement('div');
+    name.className = 'track-name';
+    name.textContent = track.name;
+    const artist = document.createElement('div');
+    artist.className = 'track-artist';
+    artist.textContent = track.artist;
+    info.append(name, artist);
+    row.append(index, info);
+    row.addEventListener('click', () => {
+      previousScreenBeforePlayer = 'playlist-screen';
+      playLocalQueue(pl.tracks, idx);
+    });
+    list.appendChild(row);
+  });
+  showScreen('playlist-screen');
 }
  
 function initMock() {
@@ -314,6 +349,12 @@ function updateNowPlaying(state) {
   document.getElementById('shuffleBtn').classList.toggle('active', !!state.shuffle);
   setAdaptiveBg(artUrl);
  
+  if (pendingSlideIn) {
+    pendingSlideIn = false;
+    clearTimeout(pendingSlideInTimeout);
+    slideArtIn();
+  }
+ 
   lastState = { position: state.position, duration: state.duration, paused: state.paused, timestamp: Date.now() };
   if (currentContextUri) {
     localStorage.setItem('lastPlayback', JSON.stringify({
@@ -359,7 +400,7 @@ async function loadPlaylists() {
   (data.items || []).forEach(pl => {
     // Filter: Only show playlists matching the whitelist pattern
     if (!CURATED_PLAYLISTS_PATTERN.test(pl.name)) return;
-    
+ 
     const tile = document.createElement('div');
     tile.className = 'tile';
     const img = document.createElement('img');
@@ -367,11 +408,53 @@ async function loadPlaylists() {
     const label = document.createElement('span');
     label.textContent = pl.name;
     tile.append(img, label);
-    tile.addEventListener('click', () => playPlaylist(pl.uri, pl.name));
+    tile.addEventListener('click', () => openSpotifyPlaylistDetail(pl));
     grid.appendChild(tile);
   });
   renderResumeBanner();
   showScreen('grid-screen');
+}
+ 
+async function openSpotifyPlaylistDetail(pl) {
+  const coverUrl = (pl.images && pl.images[0]?.url) || '';
+  document.getElementById('plName').textContent = pl.name;
+  document.getElementById('plCover').src = coverUrl;
+  const list = document.getElementById('plTrackList');
+  list.innerHTML = '<div class="track-row"><div class="track-info"><div class="track-name">Loading…</div></div></div>';
+  showScreen('playlist-screen');
+ 
+  const playlistId = pl.uri.split(':')[2];
+  const token = await getValidToken();
+  const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const data = await res.json();
+  const tracks = (data.items || []).map(item => item.track).filter(Boolean);
+  currentPlaylistDetail = { tracks, isRemote: true, contextUri: pl.uri, name: pl.name };
+ 
+  list.innerHTML = '';
+  tracks.forEach((track, idx) => {
+    const row = document.createElement('div');
+    row.className = 'track-row';
+    const index = document.createElement('div');
+    index.className = 'track-index';
+    index.textContent = idx + 1;
+    const info = document.createElement('div');
+    info.className = 'track-info';
+    const name = document.createElement('div');
+    name.className = 'track-name';
+    name.textContent = track.name;
+    const artist = document.createElement('div');
+    artist.className = 'track-artist';
+    artist.textContent = (track.artists || []).map(a => a.name).join(', ');
+    info.append(name, artist);
+    row.append(index, info);
+    row.addEventListener('click', () => {
+      previousScreenBeforePlayer = 'playlist-screen';
+      playPlaylist(pl.uri, pl.name, 0, track.uri);
+    });
+    list.appendChild(row);
+  });
 }
  
 function renderResumeBanner() {
@@ -388,15 +471,19 @@ function renderResumeBanner() {
   sub.textContent = 'from ' + formatTime(saved.positionMs);
   banner.append(title, sub);
   banner.style.display = 'block';
-  banner.onclick = () => playPlaylist(saved.contextUri, saved.name, saved.positionMs);
+  banner.onclick = () => {
+    previousScreenBeforePlayer = 'grid-screen';
+    playPlaylist(saved.contextUri, saved.name, saved.positionMs);
+  };
 }
  
-async function playPlaylist(contextUri, name, positionMs = 0) {
+async function playPlaylist(contextUri, name, positionMs = 0, trackUri = null) {
   currentContextUri = contextUri;
   currentPlaylistName = name;
   await player.activateElement();
   const token = await getValidToken();
   const body = { context_uri: contextUri };
+  if (trackUri) body.offset = { uri: trackUri };
   if (positionMs > 0) body.position_ms = positionMs;
   const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
     method: 'PUT',
@@ -410,10 +497,13 @@ async function playPlaylist(contextUri, name, positionMs = 0) {
  
 function dismissPlayerScreen() {
   stopTicker();
-  if (mockMode) {
-    showScreen(demoGridMode ? 'grid-screen' : 'setup');
-  } else {
-    showScreen('grid-screen');
+  if (mockMode && !demoGridMode) {
+    // "Test tone only" flow has no grid/playlist context to return to.
+    showScreen('setup');
+    return;
+  }
+  showScreen(previousScreenBeforePlayer);
+  if (previousScreenBeforePlayer === 'grid-screen' && !mockMode) {
     renderResumeBanner();
   }
 }
@@ -522,12 +612,30 @@ function slideArtOutThenIn(direction, action) {
     action();
     artFrame.style.transition = 'none';
     artFrame.style.transform = `translateX(${-direction * 340}px)`;
-    requestAnimationFrame(() => {
-      artFrame.style.transition = 'transform .22s ease, opacity .18s ease';
-      artFrame.style.transform = '';
-      artFrame.style.opacity = '1';
-    });
+    if (mockMode) {
+      // Mock mode updates art synchronously inside action() above, so it's safe to slide in now.
+      requestAnimationFrame(() => slideArtIn());
+    } else {
+      // Real Spotify mode: player.nextTrack()/previousTrack() are async network calls.
+      // Wait for the actual player_state_changed event (in updateNowPlaying) to deliver the
+      // new track's artwork before sliding it in -- otherwise we'd briefly show the old art.
+      pendingSlideIn = true;
+      clearTimeout(pendingSlideInTimeout);
+      pendingSlideInTimeout = setTimeout(() => {
+        // Safety net: if Spotify's event is unusually slow, don't leave the art stuck off-screen.
+        if (pendingSlideIn) { pendingSlideIn = false; slideArtIn(); }
+      }, 1500);
+    }
   }, 180);
+}
+ 
+function slideArtIn() {
+  const artFrame = document.querySelector('.art-frame');
+  requestAnimationFrame(() => {
+    artFrame.style.transition = 'transform .22s ease, opacity .18s ease';
+    artFrame.style.transform = '';
+    artFrame.style.opacity = '1';
+  });
 }
  
 let demoGridMode = false;
@@ -536,6 +644,33 @@ document.getElementById('loginBtn').addEventListener('click', startLogin);
 document.getElementById('mockBtn').addEventListener('click', () => { demoGridMode = false; initMock(); });
 document.getElementById('demoBtn').addEventListener('click', () => { demoGridMode = true; renderDemoGrid(); });
 document.getElementById('backBtn').addEventListener('click', dismissPlayerScreen);
+document.getElementById('plBackBtn').addEventListener('click', () => {
+  showScreen('grid-screen');
+  if (!mockMode) renderResumeBanner();
+});
+document.getElementById('plPlayBtn').addEventListener('click', () => {
+  if (!currentPlaylistDetail || !currentPlaylistDetail.tracks.length) return;
+  previousScreenBeforePlayer = 'playlist-screen';
+  if (currentPlaylistDetail.isRemote) {
+    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, currentPlaylistDetail.tracks[0].uri);
+  } else {
+    playLocalQueue(currentPlaylistDetail.tracks, 0);
+  }
+});
+document.getElementById('plShuffleBtn').addEventListener('click', async (e) => {
+  if (!currentPlaylistDetail || !currentPlaylistDetail.tracks.length) return;
+  previousScreenBeforePlayer = 'playlist-screen';
+  const randomIdx = Math.floor(Math.random() * currentPlaylistDetail.tracks.length);
+  if (currentPlaylistDetail.isRemote) {
+    const token = await getValidToken();
+    await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=true&device_id=${deviceId}`, {
+      method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
+    });
+    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, currentPlaylistDetail.tracks[randomIdx].uri);
+  } else {
+    playLocalQueue(currentPlaylistDetail.tracks, randomIdx);
+  }
+});
 document.getElementById('playPauseBtn').addEventListener('click', () => {
   if (mockMode) { mockAudio.paused ? mockAudio.play() : mockAudio.pause(); }
   else player.togglePlay();
