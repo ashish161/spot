@@ -423,38 +423,71 @@ async function openSpotifyPlaylistDetail(pl) {
   list.innerHTML = '<div class="track-row"><div class="track-info"><div class="track-name">Loading…</div></div></div>';
   showScreen('playlist-screen');
  
-  const playlistId = pl.uri.split(':')[2];
-  const token = await getValidToken();
-  const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const data = await res.json();
-  const tracks = (data.items || []).map(item => item.track).filter(Boolean);
-  currentPlaylistDetail = { tracks, isRemote: true, contextUri: pl.uri, name: pl.name };
+  const showFallback = (message) => {
+    currentPlaylistDetail = { tracks: [], isRemote: true, contextUri: pl.uri, name: pl.name };
+    list.innerHTML = `<div class="track-row"><div class="track-info"><div class="track-name">${message}</div><div class="track-artist">Tap Play to start this playlist</div></div></div>`;
+  };
  
-  list.innerHTML = '';
-  tracks.forEach((track, idx) => {
-    const row = document.createElement('div');
-    row.className = 'track-row';
-    const index = document.createElement('div');
-    index.className = 'track-index';
-    index.textContent = idx + 1;
-    const info = document.createElement('div');
-    info.className = 'track-info';
-    const name = document.createElement('div');
-    name.className = 'track-name';
-    name.textContent = track.name;
-    const artist = document.createElement('div');
-    artist.className = 'track-artist';
-    artist.textContent = (track.artists || []).map(a => a.name).join(', ');
-    info.append(name, artist);
-    row.append(index, info);
-    row.addEventListener('click', () => {
-      previousScreenBeforePlayer = 'playlist-screen';
-      playPlaylist(pl.uri, pl.name, 0, track.uri);
+  try {
+    const playlistId = pl.uri.split(':')[2];
+    const token = await getValidToken();
+    if (!token) {
+      log('openSpotifyPlaylistDetail: no valid token available');
+      showFallback('Couldn\u2019t load songs (not signed in)');
+      return;
+    }
+ 
+    const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items?limit=50`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    list.appendChild(row);
-  });
+ 
+    if (!res.ok) {
+      // Spotify returns 403 if the app isn't the owner/collaborator of this playlist.
+      const errText = await res.text().catch(() => '');
+      log('playlist items fetch failed', res.status, errText);
+      showFallback('Song list unavailable');
+      return;
+    }
+ 
+    const data = await res.json();
+    // Feb 2026 API migration: entries now use `.item` (new) instead of `.track` (deprecated).
+    const tracks = (data.items || []).map(entry => entry.item || entry.track).filter(Boolean);
+    currentPlaylistDetail = { tracks, isRemote: true, contextUri: pl.uri, name: pl.name };
+ 
+    if (!tracks.length) {
+      showFallback('Song list unavailable');
+      return;
+    }
+ 
+    list.innerHTML = '';
+    tracks.forEach((track, idx) => {
+      const row = document.createElement('div');
+      row.className = 'track-row';
+      const index = document.createElement('div');
+      index.className = 'track-index';
+      index.textContent = idx + 1;
+      const info = document.createElement('div');
+      info.className = 'track-info';
+      const name = document.createElement('div');
+      name.className = 'track-name';
+      name.textContent = track.name;
+      const artist = document.createElement('div');
+      artist.className = 'track-artist';
+      artist.textContent = (track.artists || []).map(a => a.name).join(', ');
+      info.append(name, artist);
+      row.append(index, info);
+      row.addEventListener('click', () => {
+        previousScreenBeforePlayer = 'playlist-screen';
+        playPlaylist(pl.uri, pl.name, 0, track.uri);
+      });
+      list.appendChild(row);
+    });
+  } catch (e) {
+    // Catches network failures, CORS blocks, token errors, or any unexpected exception --
+    // guarantees the screen never gets stuck blank/loading with no explanation.
+    log('openSpotifyPlaylistDetail error:', e.message);
+    showFallback('Couldn\u2019t load songs');
+  }
 }
  
 function renderResumeBanner() {
@@ -480,19 +513,33 @@ function renderResumeBanner() {
 async function playPlaylist(contextUri, name, positionMs = 0, trackUri = null) {
   currentContextUri = contextUri;
   currentPlaylistName = name;
-  await player.activateElement();
-  const token = await getValidToken();
-  const body = { context_uri: contextUri };
-  if (trackUri) body.offset = { uri: trackUri };
-  if (positionMs > 0) body.position_ms = positionMs;
-  const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-    method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (res.status !== 204) log('play failed', res.status, await res.text());
-  showScreen('player-screen');
-  startTicker();
+  try {
+    await player.activateElement();
+    const token = await getValidToken();
+    if (!token) {
+      log('playPlaylist: no valid token available');
+      return;
+    }
+    const body = { context_uri: contextUri };
+    if (trackUri) body.offset = { uri: trackUri };
+    if (positionMs > 0) body.position_ms = positionMs;
+    const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.status !== 204) {
+      const errText = await res.text().catch(() => '');
+      log('play failed', res.status, errText);
+      return;
+    }
+    showScreen('player-screen');
+    startTicker();
+  } catch (e) {
+    // Network failure, CORS block, or SDK not ready -- log it and stop here rather than
+    // letting the error escape uncaught, which would leave the tap looking like it did nothing.
+    log('playPlaylist error:', e.message);
+  }
 }
  
 function dismissPlayerScreen() {
@@ -649,25 +696,29 @@ document.getElementById('plBackBtn').addEventListener('click', () => {
   if (!mockMode) renderResumeBanner();
 });
 document.getElementById('plPlayBtn').addEventListener('click', () => {
-  if (!currentPlaylistDetail || !currentPlaylistDetail.tracks.length) return;
+  if (!currentPlaylistDetail) return;
   previousScreenBeforePlayer = 'playlist-screen';
   if (currentPlaylistDetail.isRemote) {
-    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, currentPlaylistDetail.tracks[0].uri);
-  } else {
+    const firstTrackUri = currentPlaylistDetail.tracks[0]?.uri || null;
+    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, firstTrackUri);
+  } else if (currentPlaylistDetail.tracks.length) {
     playLocalQueue(currentPlaylistDetail.tracks, 0);
   }
 });
 document.getElementById('plShuffleBtn').addEventListener('click', async (e) => {
-  if (!currentPlaylistDetail || !currentPlaylistDetail.tracks.length) return;
+  if (!currentPlaylistDetail) return;
   previousScreenBeforePlayer = 'playlist-screen';
-  const randomIdx = Math.floor(Math.random() * currentPlaylistDetail.tracks.length);
   if (currentPlaylistDetail.isRemote) {
     const token = await getValidToken();
     await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=true&device_id=${deviceId}`, {
       method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
     });
-    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, currentPlaylistDetail.tracks[randomIdx].uri);
-  } else {
+    const randomTrackUri = currentPlaylistDetail.tracks.length
+      ? currentPlaylistDetail.tracks[Math.floor(Math.random() * currentPlaylistDetail.tracks.length)].uri
+      : null;
+    playPlaylist(currentPlaylistDetail.contextUri, currentPlaylistDetail.name, 0, randomTrackUri);
+  } else if (currentPlaylistDetail.tracks.length) {
+    const randomIdx = Math.floor(Math.random() * currentPlaylistDetail.tracks.length);
     playLocalQueue(currentPlaylistDetail.tracks, randomIdx);
   }
 });
