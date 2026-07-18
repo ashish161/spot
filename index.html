@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#faf3ea">
+<title>Focus Player</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="setup">
+  <h1>Focus Player setup</h1>
+  <p class="hint">One-time. Client ID comes from a Spotify app you create at
+    developer.spotify.com/dashboard (desktop browser). Redirect URI must be set there to
+    this exact page's URL.</p>
+  <input id="clientIdInput" placeholder="Spotify Client ID">
+  <button id="loginBtn">Log in with Spotify</button>
+  <button id="demoBtn">View demo playlists (sample tracks, no Spotify)</button>
+  <button id="mockBtn">Test tone only &mdash; check lock-screen/resume behavior</button>
+</div>
+
+<div id="grid-screen">
+  <h1>Your playlists</h1>
+  <button id="resumeBanner" style="display:none"></button>
+  <div id="grid"></div>
+</div>
+
+<div id="player-screen">
+  <button id="backBtn">&#8249;</button>
+  <div class="top-right">
+    <button id="shuffleBtn" title="Shuffle">&#128256;</button>
+    <button id="timerBtn" title="Sleep timer">Timer: Off</button>
+  </div>
+  <img id="nowArt">
+  <div id="nowTitle">—</div>
+  <div id="nowArtist">—</div>
+  <div class="progress-row">
+    <span id="elapsedTime">0:00</span>
+    <input id="seekBar" type="range" min="0" max="100" value="0">
+    <span id="durationTime">0:00</span>
+  </div>
+  <div class="controls">
+    <button id="prevBtn">&#9198;</button>
+    <button id="playPauseBtn">&#9208;</button>
+    <button id="nextBtn">&#9197;</button>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
