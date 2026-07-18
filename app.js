@@ -340,7 +340,7 @@ async function loadPlaylists() {
     const tile = document.createElement('div');
     tile.className = 'tile';
     const img = document.createElement('img');
-    img.src = pl.images[0]?.url || '';
+    img.src = pl.images?.[0]?.url || '';
     const label = document.createElement('span');
     label.textContent = pl.name;
     tile.append(img, label);
