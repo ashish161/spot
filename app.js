@@ -1,4 +1,4 @@
-const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
+const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative user-library-read';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 
 const debug = new URLSearchParams(window.location.search).has('debug');
