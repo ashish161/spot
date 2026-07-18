@@ -1,13 +1,13 @@
 const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative user-library-read';
 const REDIRECT_URI = window.location.origin + window.location.pathname;
-
+ 
 // TODO: Replace with D1 database query later
 // Magic link: aa361e4ccd39469a8e01aa69e8117c22
 const HARDCODED_CLIENT_ID = 'aa361e4ccd39469a8e01aa69e8117c22';
-
+ 
 // Whitelist: Only playlists starting with "kid-spot" are allowed
 const CURATED_PLAYLISTS_PATTERN = /^kid-spot/i;  // Case-insensitive, starts with "kid-spot"
-
+ 
 const debug = new URLSearchParams(window.location.search).has('debug');
 const logEl = document.getElementById('log');
 if (debug) logEl.style.display = 'block';
@@ -15,7 +15,7 @@ function log(...a) {
   console.log(...a);
   if (debug) logEl.textContent += a.join(' ') + '\n';
 }
-
+ 
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -26,7 +26,7 @@ function randStr(len) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   return Array.from(crypto.getRandomValues(new Uint8Array(len))).map(b => chars[b % chars.length]).join('');
 }
-
+ 
 async function startLogin() {
   // Use hardcoded Client ID
   const clientId = HARDCODED_CLIENT_ID;
@@ -44,7 +44,7 @@ async function startLogin() {
   });
   window.location = 'https://accounts.spotify.com/authorize?' + params.toString();
 }
-
+ 
 async function exchangeCode(code) {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -58,7 +58,7 @@ async function exchangeCode(code) {
   window.history.replaceState({}, '', REDIRECT_URI);
   boot();
 }
-
+ 
 async function refreshAccessToken() {
   const refreshToken = localStorage.getItem('refresh_token');
   if (!refreshToken) return false;
@@ -70,7 +70,7 @@ async function refreshAccessToken() {
   const data = await tokenRequest(body);
   return !!data;
 }
-
+ 
 async function tokenRequest(body) {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -87,7 +87,7 @@ async function tokenRequest(body) {
   if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
   return data;
 }
-
+ 
 async function getValidToken() {
   const expiresAt = Number(localStorage.getItem('expires_at') || 0);
   if (Date.now() > expiresAt - 60000) {
@@ -96,13 +96,13 @@ async function getValidToken() {
   }
   return localStorage.getItem('access_token');
 }
-
+ 
 function showScreen(id) {
   ['setup', 'grid-screen', 'player-screen'].forEach(s => {
     document.getElementById(s).style.display = s === id ? (id === 'player-screen' ? 'flex' : 'block') : 'none';
   });
 }
-
+ 
 let player, deviceId;
 let mockMode = false;
 let mockAudio;
@@ -117,14 +117,14 @@ const SLEEP_OPTIONS_MIN = [0, 15, 30, 45, 60];
 let sleepIndex = 0;
 let sleepTimeoutId = null;
 let sleepEndsAt = null;
-
+ 
 function formatTime(ms) {
   const totalSec = Math.max(0, Math.round(ms / 1000));
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
-
+ 
 function startTicker() {
   if (tickIntervalId) return;
   tickIntervalId = setInterval(tick, 1000);
@@ -134,12 +134,12 @@ function stopTicker() {
   clearInterval(tickIntervalId);
   tickIntervalId = null;
 }
-
+ 
 function tick() {
   updateProgressDisplay();
   updateTimerLabel();
 }
-
+ 
 function updateProgressDisplay() {
   let posMs, durationMs;
   if (mockMode) {
@@ -159,7 +159,7 @@ function updateProgressDisplay() {
   }
   document.getElementById('durationTime').textContent = formatTime(durationMs);
 }
-
+ 
 function updateTimerLabel() {
   const btn = document.getElementById('timerBtn');
   if (sleepEndsAt) {
@@ -168,7 +168,7 @@ function updateTimerLabel() {
     btn.textContent = 'Timer: Off';
   }
 }
-
+ 
 const DEMO_PLAYLISTS = [
   { name: 'Morning Chill', cover: 'cover1.svg', tracks: [
     { name: 'Sunrise Keys', artist: 'Demo Sessions', file: 'track1.mp3', cover: 'cover1.svg' },
@@ -186,7 +186,7 @@ const DEMO_PLAYLISTS = [
     { name: 'Sunrise Keys', artist: 'Demo Sessions', file: 'track1.mp3', cover: 'cover4.svg' }
   ]}
 ];
-
+ 
 function renderDemoGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -204,12 +204,12 @@ function renderDemoGrid() {
   });
   showScreen('grid-screen');
 }
-
+ 
 function initMock() {
   mockMode = true;
   playLocalQueue([{ name: 'Test tone (440Hz)', artist: 'no Spotify — background/lock test', file: 'dummy.mp3' }], 0);
 }
-
+ 
 function playLocalQueue(queue, startIndex) {
   mockMode = true;
   localQueue = queue;
@@ -229,20 +229,20 @@ function playLocalQueue(queue, startIndex) {
   loadLocalTrack();
   showScreen('player-screen');
 }
-
+ 
 function loadLocalTrack() {
   const track = localQueue[localIndex];
   mockAudio.loop = localQueue.length === 1;
   mockAudio.src = track.file;
   mockAudio.play().then(() => log('local: play() resolved')).catch(e => log('local: play() rejected', e.message));
-
+ 
   const artUrl = track.cover || '';
   if (artUrl) document.getElementById('nowArt').src = artUrl;
   else document.getElementById('nowArt').removeAttribute('src');
   document.getElementById('nowTitle').textContent = track.name;
   document.getElementById('nowArtist').textContent = track.artist;
   setAdaptiveBg(artUrl);
-
+ 
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.name,
@@ -253,7 +253,7 @@ function loadLocalTrack() {
   }
   startTicker();
 }
-
+ 
 function nextLocalTrack() {
   localIndex = (localIndex + 1) % localQueue.length;
   loadLocalTrack();
@@ -262,23 +262,31 @@ function prevLocalTrack() {
   localIndex = (localIndex - 1 + localQueue.length) % localQueue.length;
   loadLocalTrack();
 }
-
-function updateMockUI() {
-  document.getElementById('playPauseBtn').innerHTML = mockAudio.paused ? '&#9208;' : '&#10074;&#10074;';
+ 
+function setPlayPauseIcon(isPaused) {
+  const playIcon = document.getElementById('playIcon');
+  const pauseIcon = document.getElementById('pauseIcon');
+  if (!playIcon || !pauseIcon) return;
+  playIcon.style.display = isPaused ? '' : 'none';
+  pauseIcon.style.display = isPaused ? 'none' : '';
 }
-
+ 
+function updateMockUI() {
+  setPlayPauseIcon(mockAudio.paused);
+}
+ 
 function initPlayer() {
   const sdkScript = document.createElement('script');
   sdkScript.src = 'https://sdk.scdn.co/spotify-player.js';
   document.body.appendChild(sdkScript);
-
+ 
   window.onSpotifyWebPlaybackSDKReady = () => {
     player = new Spotify.Player({
       name: 'Focus Player',
       getOAuthToken: async cb => cb(await getValidToken()),
       volume: 0.8
     });
-
+ 
     player.addListener('ready', ({ device_id }) => {
       deviceId = device_id;
       log('device ready', device_id);
@@ -290,11 +298,11 @@ function initPlayer() {
     player.addListener('account_error', ({ message }) => log('account_error (need Premium)', message));
     player.addListener('playback_error', ({ message }) => log('playback_error', message));
     player.addListener('player_state_changed', updateNowPlaying);
-
+ 
     player.connect();
   };
 }
-
+ 
 function updateNowPlaying(state) {
   if (!state) return;
   const track = state.track_window.current_track;
@@ -302,10 +310,10 @@ function updateNowPlaying(state) {
   document.getElementById('nowArt').src = artUrl;
   document.getElementById('nowTitle').textContent = track.name;
   document.getElementById('nowArtist').textContent = track.artists.map(a => a.name).join(', ');
-  document.getElementById('playPauseBtn').innerHTML = state.paused ? '&#9208;' : '&#10074;&#10074;';
+  setPlayPauseIcon(state.paused);
   document.getElementById('shuffleBtn').classList.toggle('active', !!state.shuffle);
   setAdaptiveBg(artUrl);
-
+ 
   lastState = { position: state.position, duration: state.duration, paused: state.paused, timestamp: Date.now() };
   if (currentContextUri) {
     localStorage.setItem('lastPlayback', JSON.stringify({
@@ -314,7 +322,7 @@ function updateNowPlaying(state) {
   }
   startTicker();
 }
-
+ 
 function setAdaptiveBg(imgUrl) {
   if (!imgUrl) return;
   const img = new Image();
@@ -339,7 +347,7 @@ function setAdaptiveBg(imgUrl) {
   };
   img.src = imgUrl;
 }
-
+ 
 async function loadPlaylists() {
   const token = await getValidToken();
   const res = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
@@ -365,7 +373,7 @@ async function loadPlaylists() {
   renderResumeBanner();
   showScreen('grid-screen');
 }
-
+ 
 function renderResumeBanner() {
   const banner = document.getElementById('resumeBanner');
   const saved = JSON.parse(localStorage.getItem('lastPlayback') || 'null');
@@ -382,7 +390,7 @@ function renderResumeBanner() {
   banner.style.display = 'block';
   banner.onclick = () => playPlaylist(saved.contextUri, saved.name, saved.positionMs);
 }
-
+ 
 async function playPlaylist(contextUri, name, positionMs = 0) {
   currentContextUri = contextUri;
   currentPlaylistName = name;
@@ -399,13 +407,8 @@ async function playPlaylist(contextUri, name, positionMs = 0) {
   showScreen('player-screen');
   startTicker();
 }
-
-let demoGridMode = false;
-
-document.getElementById('loginBtn').addEventListener('click', startLogin);
-document.getElementById('mockBtn').addEventListener('click', () => { demoGridMode = false; initMock(); });
-document.getElementById('demoBtn').addEventListener('click', () => { demoGridMode = true; renderDemoGrid(); });
-document.getElementById('backBtn').addEventListener('click', () => {
+ 
+function dismissPlayerScreen() {
   stopTicker();
   if (mockMode) {
     showScreen(demoGridMode ? 'grid-screen' : 'setup');
@@ -413,14 +416,135 @@ document.getElementById('backBtn').addEventListener('click', () => {
     showScreen('grid-screen');
     renderResumeBanner();
   }
-});
+}
+ 
+function goNext() { mockMode ? nextLocalTrack() : player.nextTrack(); }
+function goPrev() { mockMode ? prevLocalTrack() : player.previousTrack(); }
+ 
+// ---- Spotify-style swipe gestures (single recognizer, axis-locked) ----
+function setupSwipeGestures() {
+  const playerScreen = document.getElementById('player-screen');
+  const artFrame = document.querySelector('.art-frame');
+  if (!playerScreen || !artFrame) return;
+ 
+  const AXIS_LOCK_PX = 10;      // movement needed before committing to an axis
+  const DISMISS_PX = 110;       // downward px to trigger dismiss
+  const DISMISS_VELOCITY = 0.5; // px/ms fast-flick dismiss
+  const SKIP_PX = 70;           // horizontal px to trigger next/prev
+ 
+  function isInteractive(el) {
+    return !!(el.closest && el.closest('button, input'));
+  }
+ 
+  let dragging = false;
+  let axis = null; // 'v' | 'h' | null (undecided until AXIS_LOCK_PX of movement)
+  let startX = 0, startY = 0, startTime = 0;
+ 
+  playerScreen.addEventListener('pointerdown', (e) => {
+    if (isInteractive(e.target)) return;
+    dragging = true;
+    axis = null;
+    startX = e.clientX;
+    startY = e.clientY;
+    startTime = Date.now();
+    playerScreen.style.transition = 'none';
+    artFrame.style.transition = 'none';
+  });
+ 
+  playerScreen.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+ 
+    if (!axis) {
+      if (Math.abs(dx) < AXIS_LOCK_PX && Math.abs(dy) < AXIS_LOCK_PX) return;
+      if (Math.abs(dy) > Math.abs(dx) && dy > 0) axis = 'v';
+      else if (Math.abs(dx) > Math.abs(dy)) axis = 'h';
+      else { dragging = false; return; } // e.g. upward-only movement: ignore
+    }
+ 
+    if (axis === 'v' && dy > 0) {
+      playerScreen.style.transform = `translateY(${dy}px)`;
+      playerScreen.style.opacity = String(Math.max(1 - dy / 400, 0.4));
+    } else if (axis === 'h') {
+      artFrame.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`;
+    }
+  });
+ 
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    const endX = e.clientX != null ? e.clientX : startX;
+    const endY = e.clientY != null ? e.clientY : startY;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const dt = Math.max(Date.now() - startTime, 1);
+ 
+    if (axis === 'v') {
+      const velocity = dy / dt;
+      playerScreen.style.transition = 'transform .25s ease, opacity .25s ease';
+      if (dy > DISMISS_PX || velocity > DISMISS_VELOCITY) {
+        playerScreen.style.transform = 'translateY(100%)';
+        playerScreen.style.opacity = '0';
+        setTimeout(() => {
+          playerScreen.style.transition = 'none';
+          playerScreen.style.transform = '';
+          playerScreen.style.opacity = '';
+          dismissPlayerScreen();
+        }, 220);
+      } else {
+        playerScreen.style.transform = '';
+        playerScreen.style.opacity = '';
+      }
+    } else if (axis === 'h') {
+      artFrame.style.transition = 'transform .2s ease';
+      if (dx < -SKIP_PX) {
+        slideArtOutThenIn(-1, goNext);
+      } else if (dx > SKIP_PX) {
+        slideArtOutThenIn(1, goPrev);
+      } else {
+        artFrame.style.transform = '';
+      }
+    }
+    axis = null;
+  }
+ 
+  playerScreen.addEventListener('pointerup', endDrag);
+  playerScreen.addEventListener('pointercancel', endDrag);
+}
+ 
+function slideArtOutThenIn(direction, action) {
+  const artFrame = document.querySelector('.art-frame');
+  artFrame.style.transition = 'transform .18s ease, opacity .18s ease';
+  artFrame.style.transform = `translateX(${direction * 340}px) rotate(${direction * 8}deg)`;
+  artFrame.style.opacity = '0';
+  setTimeout(() => {
+    action();
+    artFrame.style.transition = 'none';
+    artFrame.style.transform = `translateX(${-direction * 340}px)`;
+    requestAnimationFrame(() => {
+      artFrame.style.transition = 'transform .22s ease, opacity .18s ease';
+      artFrame.style.transform = '';
+      artFrame.style.opacity = '1';
+    });
+  }, 180);
+}
+ 
+let demoGridMode = false;
+ 
+document.getElementById('loginBtn').addEventListener('click', startLogin);
+document.getElementById('mockBtn').addEventListener('click', () => { demoGridMode = false; initMock(); });
+document.getElementById('demoBtn').addEventListener('click', () => { demoGridMode = true; renderDemoGrid(); });
+document.getElementById('backBtn').addEventListener('click', dismissPlayerScreen);
 document.getElementById('playPauseBtn').addEventListener('click', () => {
   if (mockMode) { mockAudio.paused ? mockAudio.play() : mockAudio.pause(); }
   else player.togglePlay();
 });
-document.getElementById('nextBtn').addEventListener('click', () => { mockMode ? nextLocalTrack() : player.nextTrack(); });
-document.getElementById('prevBtn').addEventListener('click', () => { mockMode ? prevLocalTrack() : player.previousTrack(); });
-
+document.getElementById('nextBtn').addEventListener('click', goNext);
+document.getElementById('prevBtn').addEventListener('click', goPrev);
+ 
+setupSwipeGestures();
+ 
 document.getElementById('shuffleBtn').addEventListener('click', async () => {
   const btn = document.getElementById('shuffleBtn');
   const newState = !btn.classList.contains('active');
@@ -444,7 +568,7 @@ document.getElementById('shuffleBtn').addEventListener('click', async () => {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 });
-
+ 
 document.getElementById('timerBtn').addEventListener('click', () => {
   sleepIndex = (sleepIndex + 1) % SLEEP_OPTIONS_MIN.length;
   const mins = SLEEP_OPTIONS_MIN[sleepIndex];
@@ -464,7 +588,7 @@ document.getElementById('timerBtn').addEventListener('click', () => {
   }, mins * 60000);
   updateTimerLabel();
 });
-
+ 
 const seekBar = document.getElementById('seekBar');
 seekBar.addEventListener('input', () => {
   seeking = true;
@@ -476,11 +600,11 @@ seekBar.addEventListener('change', async () => {
   else await player.seek(ms);
   seeking = false;
 });
-
+ 
 async function boot() {
-  // Auto-set hardcoded Client ID
+  // Auto-set hardcoded Client ID for when the user taps "Log in with Spotify"
   localStorage.setItem('client_id', HARDCODED_CLIENT_ID);
-
+ 
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
   if (code) {
@@ -492,9 +616,11 @@ async function boot() {
   if (token) {
     initPlayer();
   } else {
-    // Auto-login with hardcoded Client ID (skip setup screen)
-    await startLogin();
+    // Show setup screen so Demo / Test Tone buttons stay reachable.
+    // Login still works with one tap (no pasting needed) via HARDCODED_CLIENT_ID.
+    showScreen('setup');
   }
 }
-
+ 
 boot();
+ 
