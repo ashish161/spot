@@ -79,6 +79,51 @@ button { font-family: inherit; cursor: pointer; }
 }
 #resumeBanner span { display: block; font-weight: 400; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
  
+/* ---- Playlist detail (track list) ---- */
+#playlist-screen { display: none; padding: 0 0 100px; height: 100%; overflow-y: auto; }
+.pl-header {
+  position: relative; padding: 60px 20px 20px;
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: linear-gradient(180deg, var(--card) 0%, var(--bg) 100%);
+}
+#plBackBtn {
+  position: absolute; top: 20px; left: 20px; z-index: 2;
+  background: rgba(0,0,0,.3); border: none; color: var(--ink);
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.pl-cover {
+  width: 160px; height: 160px; border-radius: 4px; object-fit: cover;
+  background: #333; box-shadow: 0 8px 24px rgba(0,0,0,.4); margin-bottom: 16px;
+}
+.pl-header h1 { font-size: 22px; font-weight: 800; margin-bottom: 18px; }
+.pl-actions { display: flex; align-items: center; gap: 16px; }
+#plShuffleBtn {
+  background: transparent; border: none; color: var(--ink-soft);
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+#plShuffleBtn.active { color: var(--brand); }
+#plPlayBtn {
+  width: 52px; height: 52px; border-radius: 50%; border: none;
+  background: var(--brand); display: flex; align-items: center; justify-content: center;
+}
+#plPlayBtn:active { background: var(--brand-press); }
+ 
+#plTrackList { padding: 8px 12px 0; }
+.track-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 8px; border-radius: 6px;
+  transition: background .12s ease;
+}
+.track-row:active { background: rgba(255,255,255,.06); }
+.track-row .track-index { width: 20px; text-align: center; font-size: 13px; color: var(--ink-faint, var(--ink-soft)); flex-shrink: 0; }
+.track-row .track-info { flex: 1; min-width: 0; }
+.track-row .track-name { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track-row .track-artist { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.track-row.now-playing .track-name { color: var(--brand); }
+.track-row.now-playing .track-index { color: var(--brand); }
+ 
 /* ---- Now playing ---- */
 #player-screen {
   display: none;
